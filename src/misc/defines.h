@@ -83,6 +83,9 @@
 
 #define PROPERTY_COLOR_START                   "color_start"
 #define PROPERTY_COLOR_END                     "color_end"
+#define PROPERTY_GRADIENT_TYPE                 "type"
+#define PROPERTY_GRADIENT_RADIUS_H             "radius_h"
+#define PROPERTY_GRADIENT_RADIUS_V             "radius_v"
 
 #define PROPERTY_FONT_FAMILY                   "family"
 #define PROPERTY_FONT_STYLE                    "style"

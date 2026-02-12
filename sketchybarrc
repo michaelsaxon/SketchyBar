@@ -70,6 +70,15 @@ sketchybar --add item chevron left \
            --set chevron icon= label.drawing=off \
            --add item front_app left \
            --set front_app icon.drawing=off script="$PLUGIN_DIR/front_app.sh" \
+                           background.drawing=on \
+                           background.height=25 \
+                           background.gradient.type=radial \
+                           background.gradient.color_start=0xffff6b9d \
+                           background.gradient.color_end=0x00000000 \
+                           background.gradient.radius_h=40 \
+                           background.gradient.radius_v=15 \
+                           background.padding_left=8 \
+                           background.padding_right=8 \
            --subscribe front_app front_app_switched
 
 ##### Adding Right Items #####

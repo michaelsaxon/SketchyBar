@@ -6,6 +6,9 @@ struct gradient {
   bool enabled;
 
   uint32_t angle;
+  uint32_t type;
+  float radius_h;
+  float radius_v;
 
   struct color color_start;
   struct color color_end;
