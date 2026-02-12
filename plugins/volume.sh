@@ -1,6 +1,7 @@
 #!/bin/sh
 
-alias sketchybar=bin/sketchybar_arm64
+alias sketchybar=bin/sketchybar
+
 
 # The volume_change event supplies a $INFO variable in which the current volume
 # percentage is passed to the script.

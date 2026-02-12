@@ -273,6 +273,7 @@ void background_destroy(struct background* background) {
 
   if (background->clips) free(background->clips);
 
+  gradient_destroy(&background->gradient);
   image_destroy(&background->image);
   background_clear_pointers(background);
 }

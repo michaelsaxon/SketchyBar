@@ -10,6 +10,18 @@ void gradient_init(struct gradient* gradient) {
   gradient->radius_v = 0.0f;  // 0 = auto (diagonal)
   color_init(&gradient->color_start, 0x00000000);
   color_init(&gradient->color_end, 0x00000000);
+  gradient->stops = NULL;
+  gradient->stops_count = 0;
+  gradient->stops_capacity = 0;
+}
+
+void gradient_destroy(struct gradient* gradient) {
+  if (gradient->stops) {
+    free(gradient->stops);
+    gradient->stops = NULL;
+    gradient->stops_count = 0;
+    gradient->stops_capacity = 0;
+  }
 }
 
 static bool gradient_set_enabled(struct gradient* gradient, bool enabled) {
@@ -52,6 +64,44 @@ static bool gradient_set_color_end(struct gradient* gradient, uint32_t color) {
   return color_set_hex(&gradient->color_end, color) || changed;
 }
 
+static void gradient_ensure_stop_capacity(struct gradient* gradient, uint32_t index) {
+  // Ensure we have capacity for index+1 stops
+  uint32_t required = index + 1;
+
+  if (required > gradient->stops_capacity) {
+    uint32_t new_capacity = gradient->stops_capacity == 0 ? 4 : gradient->stops_capacity * 2;
+    while (new_capacity < required) new_capacity *= 2;
+
+    gradient->stops = realloc(gradient->stops, new_capacity * sizeof(struct gradient_stop));
+    gradient->stops_capacity = new_capacity;
+  }
+
+  // Initialize new stops if we're expanding count
+  if (required > gradient->stops_count) {
+    for (uint32_t i = gradient->stops_count; i < required; i++) {
+      gradient->stops[i].position = 0.0f;
+      color_init(&gradient->stops[i].color, 0x00000000);
+    }
+    gradient->stops_count = required;
+  }
+}
+
+static bool gradient_set_stop_position(struct gradient* gradient, uint32_t index, float position) {
+  gradient_ensure_stop_capacity(gradient, index);
+  float clamped = position < 0.0f ? 0.0f : (position > 1.0f ? 1.0f : position);
+  if (gradient->stops[index].position == clamped) return false;
+  gradient->stops[index].position = clamped;
+  gradient_set_enabled(gradient, true);
+  return true;
+}
+
+static bool gradient_set_stop_color(struct gradient* gradient, uint32_t index, uint32_t color) {
+  gradient_ensure_stop_capacity(gradient, index);
+  bool changed = color_set_hex(&gradient->stops[index].color, color);
+  gradient_set_enabled(gradient, true);
+  return changed;
+}
+
 static void gradient_get_points(uint32_t angle, CGRect region, CGPoint* start, CGPoint* end) {
   double rad = (double)angle * deg_to_rad;
   double dx = cos(rad);
@@ -84,16 +134,38 @@ static void gradient_draw_linear(struct gradient* gradient, CGContextRef context
   CGContextClip(context);
   CFRelease(path);
 
-  CGFloat components[8] = {
-    gradient->color_start.r, gradient->color_start.g,
-    gradient->color_start.b, gradient->color_start.a,
-    gradient->color_end.r,   gradient->color_end.g,
-    gradient->color_end.b,   gradient->color_end.a
-  };
-
   CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
-  CGGradientRef cg_gradient = CGGradientCreateWithColorComponents(
-      color_space, components, NULL, 2);
+  CGGradientRef cg_gradient;
+
+  if (gradient->stops_count > 0) {
+    // Power user: arbitrary stops
+    CGFloat* components = malloc(gradient->stops_count * 4 * sizeof(CGFloat));
+    CGFloat* locations = malloc(gradient->stops_count * sizeof(CGFloat));
+
+    for (uint32_t i = 0; i < gradient->stops_count; i++) {
+      components[i * 4 + 0] = gradient->stops[i].color.r;
+      components[i * 4 + 1] = gradient->stops[i].color.g;
+      components[i * 4 + 2] = gradient->stops[i].color.b;
+      components[i * 4 + 3] = gradient->stops[i].color.a;
+      locations[i] = gradient->stops[i].position;
+    }
+
+    cg_gradient = CGGradientCreateWithColorComponents(
+        color_space, components, locations, gradient->stops_count);
+
+    free(components);
+    free(locations);
+  } else {
+    // Legacy: 2-color gradient
+    CGFloat components[8] = {
+      gradient->color_start.r, gradient->color_start.g,
+      gradient->color_start.b, gradient->color_start.a,
+      gradient->color_end.r,   gradient->color_end.g,
+      gradient->color_end.b,   gradient->color_end.a
+    };
+    cg_gradient = CGGradientCreateWithColorComponents(
+        color_space, components, NULL, 2);
+  }
   CFRelease(color_space);
 
   CGPoint start_point, end_point;
@@ -121,16 +193,38 @@ static void gradient_draw_radial(struct gradient* gradient, CGContextRef context
   CGContextClip(context);
   CFRelease(path);
 
-  CGFloat components[8] = {
-    gradient->color_start.r, gradient->color_start.g,
-    gradient->color_start.b, gradient->color_start.a,
-    gradient->color_end.r,   gradient->color_end.g,
-    gradient->color_end.b,   gradient->color_end.a
-  };
-
   CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
-  CGGradientRef cg_gradient = CGGradientCreateWithColorComponents(
-      color_space, components, NULL, 2);
+  CGGradientRef cg_gradient;
+
+  if (gradient->stops_count > 0) {
+    // Power user: arbitrary stops
+    CGFloat* components = malloc(gradient->stops_count * 4 * sizeof(CGFloat));
+    CGFloat* locations = malloc(gradient->stops_count * sizeof(CGFloat));
+
+    for (uint32_t i = 0; i < gradient->stops_count; i++) {
+      components[i * 4 + 0] = gradient->stops[i].color.r;
+      components[i * 4 + 1] = gradient->stops[i].color.g;
+      components[i * 4 + 2] = gradient->stops[i].color.b;
+      components[i * 4 + 3] = gradient->stops[i].color.a;
+      locations[i] = gradient->stops[i].position;
+    }
+
+    cg_gradient = CGGradientCreateWithColorComponents(
+        color_space, components, locations, gradient->stops_count);
+
+    free(components);
+    free(locations);
+  } else {
+    // Legacy: 2-color gradient
+    CGFloat components[8] = {
+      gradient->color_start.r, gradient->color_start.g,
+      gradient->color_start.b, gradient->color_start.a,
+      gradient->color_end.r,   gradient->color_end.g,
+      gradient->color_end.b,   gradient->color_end.a
+    };
+    cg_gradient = CGGradientCreateWithColorComponents(
+        color_space, components, NULL, 2);
+  }
   CFRelease(color_space);
 
   CGPoint center = {
@@ -197,14 +291,28 @@ void gradient_serialize(struct gradient* gradient, char* indent, FILE* rsp) {
                "%s\"radius_h\": %.2f,\n"
                "%s\"radius_v\": %.2f,\n"
                "%s\"color_start\": \"0x%x\",\n"
-               "%s\"color_end\": \"0x%x\"",
+               "%s\"color_end\": \"0x%x\",\n"
+               "%s\"stops_count\": %u",
                indent, format_bool(gradient->enabled),
                indent, gradient->type == 1 ? "radial" : "linear",
                indent, gradient->angle,
                indent, gradient->radius_h,
                indent, gradient->radius_v,
                indent, gradient->color_start.hex,
-               indent, gradient->color_end.hex);
+               indent, gradient->color_end.hex,
+               indent, gradient->stops_count);
+
+  if (gradient->stops_count > 0) {
+    fprintf(rsp, ",\n%s\"stops\": [\n", indent);
+    for (uint32_t i = 0; i < gradient->stops_count; i++) {
+      fprintf(rsp, "%s  {\"position\": %.2f, \"color\": \"0x%x\"}",
+              indent,
+              gradient->stops[i].position,
+              gradient->stops[i].color.hex);
+      if (i < gradient->stops_count - 1) fprintf(rsp, ",\n");
+    }
+    fprintf(rsp, "\n%s]", indent);
+  }
 }
 
 bool gradient_parse_sub_domain(struct gradient* gradient, FILE* rsp, struct token property, char* message) {
@@ -275,6 +383,41 @@ bool gradient_parse_sub_domain(struct gradient* gradient, FILE* rsp, struct toke
       }
       else if (token_equals(subdom, SUB_DOMAIN_COLOR_END)) {
         return color_parse_sub_domain(&gradient->color_end, rsp, entry, message);
+      }
+      else if (token_equals(subdom, "stops")) {
+        // Parse stops.INDEX.PROPERTY or stops.INDEX.color.PROPERTY
+        struct key_value_pair stop_pair = get_key_value_pair(entry.text, '.');
+        if (stop_pair.key && stop_pair.value) {
+          uint32_t index = atoi(stop_pair.key);
+          struct token stop_property = {stop_pair.value, strlen(stop_pair.value)};
+
+          // Check if it's a direct property or color sub-property
+          struct key_value_pair color_pair = get_key_value_pair(stop_property.text, '.');
+          if (color_pair.key && color_pair.value) {
+            // stops.INDEX.color.PROPERTY
+            struct token color_subdom = {color_pair.key, strlen(color_pair.key)};
+            struct token color_entry = {color_pair.value, strlen(color_pair.value)};
+            if (token_equals(color_subdom, "color")) {
+              gradient_ensure_stop_capacity(gradient, index);
+              return color_parse_sub_domain(&gradient->stops[index].color, rsp, color_entry, message);
+            }
+          } else {
+            // stops.INDEX.PROPERTY (direct property)
+            if (token_equals(stop_property, "position")) {
+              struct token token = get_token(&message);
+              needs_refresh = gradient_set_stop_position(gradient, index, token_to_float(token));
+            }
+            else if (token_equals(stop_property, "color")) {
+              struct token token = get_token(&message);
+              needs_refresh = gradient_set_stop_color(gradient, index, token_to_int(token));
+            }
+            else {
+              respond(rsp, "[!] Gradient: Invalid stop property '%s'\n", stop_property.text);
+            }
+          }
+        } else {
+          respond(rsp, "[!] Gradient: Invalid stops syntax '%s'\n", entry.text);
+        }
       }
       else {
         respond(rsp, "[!] Gradient: Invalid subdomain '%s'\n", subdom.text);

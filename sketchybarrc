@@ -3,7 +3,7 @@
 # For a (much) more advanced configuration example see my dotfiles:
 # https://github.com/FelixKratz/dotfiles
 
-alias sketchybar=bin/sketchybar_arm64
+alias sketchybar=bin/sketchybar
 
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 
@@ -14,10 +14,29 @@ PLUGIN_DIR="$CONFIG_DIR/plugins"
 # If you are looking for other colors, see the color picker:
 # https://felixkratz.github.io/SketchyBar/config/tricks#color-picker
 
+# sketchybar --bar position=top height=40 blur_radius=30 \
+#                  gradient.color_start=0xeeBBCCFF \
+#                  gradient.color_end=0xeeFF69B4 \
+#                  gradient.angle=270
+
 sketchybar --bar position=top height=40 blur_radius=30 \
-                 gradient.color_start=0xffBBCCFF \
-                 gradient.color_end=0xff011555 \
-                 gradient.angle=180
+                 gradient.stops.0.color=0xee1F55CC \
+                 gradient.stops.0.position=0 \
+                 gradient.stops.1.color=0xff75B4EE \
+                 gradient.stops.1.position=0.09 \
+                 gradient.stops.2.color=0xff488EF1 \
+                 gradient.stops.2.position=0.14 \
+                 gradient.stops.3.color=0xff2056D6 \
+                 gradient.stops.3.position=0.20 \
+                 gradient.stops.4.color=0xff2464E2 \
+                 gradient.stops.4.position=0.40 \
+                 gradient.stops.5.color=0xff225DD7 \
+                 gradient.stops.5.position=0.77 \
+                 gradient.stops.6.color=0xff1F55CC \
+                 gradient.stops.6.position=0.95 \
+                 gradient.stops.7.color=0xff1946B5 \
+                 gradient.stops.7.position=1 \
+                 gradient.angle=270
 
 ##### Changing Defaults #####
 # We now change some default values, which are applied to all further items.
@@ -28,7 +47,7 @@ default=(
   padding_left=5
   padding_right=5
   icon.font="Hack Nerd Font:Bold:17.0"
-  label.font="Hack Nerd Font:Bold:14.0"
+  label.font="Berkeley Mono:Bold:14.0"
   icon.color=0xffffffff
   label.color=0xffffffff
   icon.padding_left=4
@@ -52,10 +71,16 @@ do
     icon="${SPACE_ICONS[i]}"
     icon.padding_left=7
     icon.padding_right=7
-    background.color=0x40ffffff
-    background.corner_radius=5
+    # background.color=0x40ffffff
+    background.gradient.type=radial
+    background.gradient.color_start=0xFF11FF55
+    background.gradient.color_end=0xFF059933
+    background.gradient.radius_h=40 \
+    background.gradient.radius_v=15 \
+    background.corner_radius=2
     background.height=25
-    label.drawing=off
+    label.drawing=on
+    label.font.size=16
     script="$PLUGIN_DIR/space.sh"
     click_script="yabai -m space --focus $sid"
   )
@@ -71,14 +96,25 @@ sketchybar --add item chevron left \
            --add item front_app left \
            --set front_app icon.drawing=off script="$PLUGIN_DIR/front_app.sh" \
                            background.drawing=on \
-                           background.height=25 \
-                           background.gradient.type=radial \
-                           background.gradient.color_start=0xffff6b9d \
-                           background.gradient.color_end=0x00000000 \
-                           background.gradient.radius_h=40 \
-                           background.gradient.radius_v=15 \
+                           background.height=40 \
+                           background.gradient.stops.0.color=0x00FFFFFF \
+                           background.gradient.stops.1.color=0xff1946B5 \
+                           background.gradient.stops.2.color=0xff75B4EE \
+                           background.gradient.stops.3.color=0xff488EF1 \
+                           background.gradient.stops.4.color=0xff488EF1 \
+                           background.gradient.stops.5.color=0xff1F55CC \
+                           background.gradient.stops.0.position=0.1 \
+                           background.gradient.stops.1.position=0.2 \
+                           background.gradient.stops.2.position=0.24 \
+                           background.gradient.stops.3.position=0.30 \
+                           background.gradient.stops.4.position=0.90 \
+                           background.gradient.stops.5.position=0.97 \
                            background.padding_left=8 \
                            background.padding_right=8 \
+                           label.padding_left=10 \
+                           label.padding_right=30 \
+                           background.corner_radius=2 \
+                           background.gradient.angle=270 \
            --subscribe front_app front_app_switched
 
 ##### Adding Right Items #####

@@ -20,7 +20,7 @@ get_icon() {
     "Firefox") echo "󰈹" ;;
     "Microsoft PowerPoint") echo "󰈧" ;;
     "Slack") echo "󰒱" ;;
-    "Discord") echo "" ;;
+    "Discord") echo "" ;;
     "Messages") echo "󰍦" ;;
     "Obsidian") echo "󱓷" ;;
     "Zotero") echo "󱉟" ;;

@@ -16,11 +16,11 @@ APPS=$(yabai -m query --windows --space "$SPACE_NUM" 2>/dev/null | jq -r '.[].ap
 get_icon() {
   case "$1" in
     "Code"|"Code - Insiders"|"Cursor") echo "󰨞" ;;
-    "iTerm2"|"Terminal"|"Warp") echo "" ;;
+    "iTerm2"|"Terminal"|"Warp") echo "" ;;
     "Firefox") echo "󰈹" ;;
     "Microsoft PowerPoint") echo "󰈧" ;;
     "Slack") echo "󰒱" ;;
-    "Discord") echo "" ;;
+    "Discord") echo "" ;;
     "Messages") echo "󰍦" ;;
     "Obsidian") echo "󱓷" ;;
     "Zotero") echo "󱉟" ;;

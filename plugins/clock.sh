@@ -1,6 +1,7 @@
 #!/bin/sh
 
-alias sketchybar=bin/sketchybar_arm64
+alias sketchybar=bin/sketchybar
+
 
 # The $NAME variable is passed from sketchybar and holds the name of
 # the item invoking this script:

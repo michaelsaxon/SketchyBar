@@ -1,6 +1,6 @@
 #!/bin/sh
 
-alias sketchybar=bin/sketchybar_arm64
+alias sketchybar=bin/sketchybar
 
 # Some events send additional information specific to the event in the $INFO
 # variable. E.g. the front_app_switched event sends the name of the newly
