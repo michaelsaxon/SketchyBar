@@ -24,6 +24,7 @@ void background_init(struct background* background) {
   color_init(&background->color, 0x00000000);
   color_init(&background->border_color, 0x00000000);
   shadow_init(&background->shadow);
+  gradient_init(&background->gradient);
   image_init(&background->image);
 }
 
@@ -198,6 +199,7 @@ void background_draw(struct background* background, CGContextRef context) {
 
   if ((background->border_color.a == 0 || background->border_width == 0)
       && (background->color.a == 0)
+      && !background->gradient.enabled
       && !background->shadow.enabled
       && !background->image.enabled                                      ) {
     // The background is enabled but has no content.
@@ -217,12 +219,42 @@ void background_draw(struct background* background, CGContextRef context) {
               &background->shadow.color);
   }
 
-  draw_rect(context,
-            background_bounds,
-            &background->color,
-            background->corner_radius,
-            background->border_width,
-            &background->border_color);
+  if (background->gradient.enabled) {
+    CGRect inset = CGRectInset(background_bounds,
+                               (float)(background->border_width) / 2.f,
+                               (float)(background->border_width) / 2.f);
+    gradient_draw(&background->gradient, context, inset,
+                  background->corner_radius);
+
+    if (background->border_width > 0 && background->border_color.a > 0) {
+      CGContextSetLineWidth(context, background->border_width);
+      CGContextSetRGBStrokeColor(context,
+                                  background->border_color.r,
+                                  background->border_color.g,
+                                  background->border_color.b,
+                                  background->border_color.a);
+      CGMutablePathRef path = CGPathCreateMutable();
+      CGRect inset_region = CGRectInset(background_bounds,
+                                         (float)(background->border_width) / 2.f,
+                                         (float)(background->border_width) / 2.f);
+      uint32_t cr = background->corner_radius;
+      if (cr > inset_region.size.height / 2.f || cr > inset_region.size.width / 2.f)
+        cr = inset_region.size.height > inset_region.size.width
+             ? inset_region.size.width / 2.f
+             : inset_region.size.height / 2.f;
+      CGPathAddRoundedRect(path, NULL, inset_region, cr, cr);
+      CGContextAddPath(context, path);
+      CGContextStrokePath(context);
+      CFRelease(path);
+    }
+  } else {
+    draw_rect(context,
+              background_bounds,
+              &background->color,
+              background->corner_radius,
+              background->border_width,
+              &background->border_color);
+  }
 
   if (background->image.enabled)
     image_draw(&background->image, context);
@@ -274,6 +306,10 @@ void background_serialize(struct background* background, char* indent, FILE* rsp
 
   fprintf(rsp, "%s\"image\": {\n", indent);
   image_serialize(&background->image, deeper_indent, rsp);
+  fprintf(rsp, "\n%s}", indent);
+
+  fprintf(rsp, ",\n%s\"gradient\": {\n", indent);
+  gradient_serialize(&background->gradient, deeper_indent, rsp);
   fprintf(rsp, "\n%s}", indent);
 
   if (!detailed) return;
@@ -385,6 +421,12 @@ bool background_parse_sub_domain(struct background* background, FILE* rsp, struc
                                       rsp,
                                       entry,
                                       message                   );
+      }
+      else if (token_equals(subdom, SUB_DOMAIN_GRADIENT)) {
+        return gradient_parse_sub_domain(&background->gradient,
+                                         rsp,
+                                         entry,
+                                         message                );
       }
       else {
         respond(rsp, "[!] Background: Invalid subdomain '%s'\n", subdom.text);

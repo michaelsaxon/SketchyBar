@@ -1,5 +1,6 @@
 #pragma once
 #include "image.h"
+#include "gradient.h"
 
 struct background {
   bool enabled;
@@ -16,6 +17,7 @@ struct background {
   CGRect bounds;
   struct image image;
   struct shadow shadow;
+  struct gradient gradient;
   struct color color;
   struct color border_color;
 

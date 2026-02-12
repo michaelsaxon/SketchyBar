@@ -3,6 +3,8 @@
 # For a (much) more advanced configuration example see my dotfiles:
 # https://github.com/FelixKratz/dotfiles
 
+alias sketchybar=bin/sketchybar_arm64
+
 PLUGIN_DIR="$CONFIG_DIR/plugins"
 
 ##### Bar Appearance #####
@@ -12,7 +14,10 @@ PLUGIN_DIR="$CONFIG_DIR/plugins"
 # If you are looking for other colors, see the color picker:
 # https://felixkratz.github.io/SketchyBar/config/tricks#color-picker
 
-sketchybar --bar position=top height=40 blur_radius=30 color=0x40000000
+sketchybar --bar position=top height=40 blur_radius=30 \
+                 gradient.color_start=0xffBBCCFF \
+                 gradient.color_end=0xff011555 \
+                 gradient.angle=180
 
 ##### Changing Defaults #####
 # We now change some default values, which are applied to all further items.

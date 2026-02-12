@@ -49,6 +49,9 @@
 #define SUB_DOMAIN_BORDER_COLOR                "border_color"
 #define SUB_DOMAIN_HIGHLIGHT_COLOR             "highlight_color"
 #define SUB_DOMAIN_FILL_COLOR                  "fill_color"
+#define SUB_DOMAIN_GRADIENT                    "gradient"
+#define SUB_DOMAIN_COLOR_START                 "color_start"
+#define SUB_DOMAIN_COLOR_END                   "color_end"
 
 #define PROPERTY_FONT                          "font"
 #define PROPERTY_COLOR                         "color"
@@ -77,6 +80,9 @@
 #define PROPERTY_COLOR_RED                     "red"
 #define PROPERTY_COLOR_GREEN                   "green"
 #define PROPERTY_COLOR_BLUE                    "blue"
+
+#define PROPERTY_COLOR_START                   "color_start"
+#define PROPERTY_COLOR_END                     "color_end"
 
 #define PROPERTY_FONT_FAMILY                   "family"
 #define PROPERTY_FONT_STYLE                    "style"
