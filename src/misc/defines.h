@@ -52,6 +52,11 @@
 #define SUB_DOMAIN_GRADIENT                    "gradient"
 #define SUB_DOMAIN_COLOR_START                 "color_start"
 #define SUB_DOMAIN_COLOR_END                   "color_end"
+#define SUB_DOMAIN_CORNER_RADIUS               "corner_radius"
+#define SUB_DOMAIN_TOP                         "top"
+#define SUB_DOMAIN_BOTTOM                      "bottom"
+#define SUB_DOMAIN_LEFT                        "left"
+#define SUB_DOMAIN_RIGHT                       "right"
 
 #define PROPERTY_FONT                          "font"
 #define PROPERTY_COLOR                         "color"

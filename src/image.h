@@ -20,7 +20,7 @@ struct image {
 
   struct color border_color;
   float border_width;
-  uint32_t corner_radius;
+  struct corner_radii corner_radii;
 
   int padding_left;
   int padding_right;

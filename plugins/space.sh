@@ -10,7 +10,7 @@ alias sketchybar=bin/sketchybar
 SPACE_NUM="${NAME#*.}"
 
 # Query yabai for windows in this space and get unique app names
-APPS=$(yabai -m query --windows --space "$SPACE_NUM" 2>/dev/null | jq -r '.[].app' | sort -u)
+APPS=$(yabai -m query --windows --space "$SPACE_NUM" 2>/dev/null | jq -r '.[] | select(."is-sticky" == false) | .app' | sort -u)
 
 # Function to map app name to icon
 get_icon() {
@@ -40,5 +40,12 @@ if [ -n "$APPS" ]; then
   done <<< "$APPS"
 fi
 
+# Set colors based on selection state
+if [ "$SELECTED" = "true" ]; then
+  COLOR=0xFFFFFFFF
+else
+  COLOR=0x77FFFFFF
+fi
+
 # Update the space item
-sketchybar --set "$NAME" background.drawing="$SELECTED" label="$LABEL"
+sketchybar --set "$NAME" background.drawing="$SELECTED" label="$LABEL" label.color="$COLOR" icon.color="$COLOR"

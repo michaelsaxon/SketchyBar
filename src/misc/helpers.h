@@ -39,6 +39,13 @@ struct notification {
   char* info;
 };
 
+struct corner_radii {
+  uint32_t top_left;
+  uint32_t top_right;
+  uint32_t bottom_left;
+  uint32_t bottom_right;
+};
+
 static inline struct notification* notification_create() {
   struct notification* notification = malloc(sizeof(struct notification));
   memset(notification, 0, sizeof(struct notification));
@@ -300,11 +307,66 @@ static inline uint32_t get_set_bit_position(uint32_t mask) {
   return pos;
 }
 
-static inline void clip_rect(CGContextRef context, CGRect region, float clip, uint32_t corner_radius) {
+static inline void add_rounded_rect_path(CGMutablePathRef path, CGRect rect,
+                                         uint32_t tl, uint32_t tr,
+                                         uint32_t bl, uint32_t br) {
+  // Clamp each radius to half of smallest dimension
+  float max_radius = fmin(rect.size.width, rect.size.height) / 2.0f;
+  float top_left = fmin(tl, max_radius);
+  float top_right = fmin(tr, max_radius);
+  float bottom_left = fmin(bl, max_radius);
+  float bottom_right = fmin(br, max_radius);
+
+  // Construct path with manual arcs
+  // Start at top-left, after the rounded corner
+  CGPathMoveToPoint(path, NULL, rect.origin.x + top_left, rect.origin.y);
+
+  // Top edge and top-right corner
+  CGPathAddLineToPoint(path, NULL, rect.origin.x + rect.size.width - top_right, rect.origin.y);
+  if (top_right > 0) {
+    CGPathAddArc(path, NULL,
+                 rect.origin.x + rect.size.width - top_right,
+                 rect.origin.y + top_right,
+                 top_right, -M_PI_2, 0, false);
+  }
+
+  // Right edge and bottom-right corner
+  CGPathAddLineToPoint(path, NULL, rect.origin.x + rect.size.width,
+                      rect.origin.y + rect.size.height - bottom_right);
+  if (bottom_right > 0) {
+    CGPathAddArc(path, NULL,
+                 rect.origin.x + rect.size.width - bottom_right,
+                 rect.origin.y + rect.size.height - bottom_right,
+                 bottom_right, 0, M_PI_2, false);
+  }
+
+  // Bottom edge and bottom-left corner
+  CGPathAddLineToPoint(path, NULL, rect.origin.x + bottom_left,
+                      rect.origin.y + rect.size.height);
+  if (bottom_left > 0) {
+    CGPathAddArc(path, NULL,
+                 rect.origin.x + bottom_left,
+                 rect.origin.y + rect.size.height - bottom_left,
+                 bottom_left, M_PI_2, M_PI, false);
+  }
+
+  // Left edge and top-left corner
+  CGPathAddLineToPoint(path, NULL, rect.origin.x, rect.origin.y + top_left);
+  if (top_left > 0) {
+    CGPathAddArc(path, NULL,
+                 rect.origin.x + top_left,
+                 rect.origin.y + top_left,
+                 top_left, M_PI, 3 * M_PI_2, false);
+  }
+
+  CGPathCloseSubpath(path);
+}
+
+static inline void clip_rect(CGContextRef context, CGRect region, float clip, struct corner_radii* corner_radii) {
   CGMutablePathRef path = CGPathCreateMutable();
-  if (corner_radius > region.size.height / 2.f || corner_radius > region.size.width / 2.f)
-    corner_radius = region.size.height > region.size.width ? region.size.width / 2.f : region.size.height / 2.f;
-  CGPathAddRoundedRect(path, NULL, region, corner_radius, corner_radius);
+  add_rounded_rect_path(path, region,
+                       corner_radii->top_left, corner_radii->top_right,
+                       corner_radii->bottom_left, corner_radii->bottom_right);
   CGContextSetBlendMode(context, kCGBlendModeDestinationOut);
   CGContextSetRGBFillColor(context, 0.f, 0.f, 0.f, clip);
   CGContextAddPath(context, path);

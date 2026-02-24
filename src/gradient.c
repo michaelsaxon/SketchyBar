@@ -121,15 +121,13 @@ static void gradient_get_points(uint32_t angle, CGRect region, CGPoint* start, C
   end->y   = cy + dy * extent;
 }
 
-static void gradient_draw_linear(struct gradient* gradient, CGContextRef context, CGRect region, uint32_t corner_radius) {
+static void gradient_draw_linear(struct gradient* gradient, CGContextRef context, CGRect region, struct corner_radii* corner_radii) {
   CGContextSaveGState(context);
 
   CGMutablePathRef path = CGPathCreateMutable();
-  if (corner_radius > region.size.height / 2.f || corner_radius > region.size.width / 2.f)
-    corner_radius = region.size.height > region.size.width
-                    ? region.size.width / 2.f
-                    : region.size.height / 2.f;
-  CGPathAddRoundedRect(path, NULL, region, corner_radius, corner_radius);
+  add_rounded_rect_path(path, region,
+                       corner_radii->top_left, corner_radii->top_right,
+                       corner_radii->bottom_left, corner_radii->bottom_right);
   CGContextAddPath(context, path);
   CGContextClip(context);
   CFRelease(path);
@@ -180,15 +178,13 @@ static void gradient_draw_linear(struct gradient* gradient, CGContextRef context
   CGContextRestoreGState(context);
 }
 
-static void gradient_draw_radial(struct gradient* gradient, CGContextRef context, CGRect region, uint32_t corner_radius) {
+static void gradient_draw_radial(struct gradient* gradient, CGContextRef context, CGRect region, struct corner_radii* corner_radii) {
   CGContextSaveGState(context);
 
   CGMutablePathRef path = CGPathCreateMutable();
-  if (corner_radius > region.size.height / 2.f || corner_radius > region.size.width / 2.f)
-    corner_radius = region.size.height > region.size.width
-                    ? region.size.width / 2.f
-                    : region.size.height / 2.f;
-  CGPathAddRoundedRect(path, NULL, region, corner_radius, corner_radius);
+  add_rounded_rect_path(path, region,
+                       corner_radii->top_left, corner_radii->top_right,
+                       corner_radii->bottom_left, corner_radii->bottom_right);
   CGContextAddPath(context, path);
   CGContextClip(context);
   CFRelease(path);
@@ -276,11 +272,11 @@ static void gradient_draw_radial(struct gradient* gradient, CGContextRef context
   CGContextRestoreGState(context);
 }
 
-void gradient_draw(struct gradient* gradient, CGContextRef context, CGRect region, uint32_t corner_radius) {
+void gradient_draw(struct gradient* gradient, CGContextRef context, CGRect region, struct corner_radii* corner_radii) {
   if (gradient->type == 1) {
-    gradient_draw_radial(gradient, context, region, corner_radius);
+    gradient_draw_radial(gradient, context, region, corner_radii);
   } else {
-    gradient_draw_linear(gradient, context, region, corner_radius);
+    gradient_draw_linear(gradient, context, region, corner_radii);
   }
 }
 

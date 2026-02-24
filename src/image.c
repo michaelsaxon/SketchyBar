@@ -12,7 +12,10 @@ void image_init(struct image* image) {
   image->size = CGSizeZero;
   image->scale = 1.0;
   image->path = NULL;
-  image->corner_radius = 0;
+  image->corner_radii.top_left = 0;
+  image->corner_radii.top_right = 0;
+  image->corner_radii.bottom_left = 0;
+  image->corner_radii.bottom_right = 0;
   image->border_width = 0;
   image->y_offset = 0;
   image->padding_left = 0;
@@ -185,11 +188,70 @@ bool image_set_scale(struct image* image, float scale) {
   return true;
 }
 
-bool image_set_corner_radius(struct image* image, uint32_t corner_radius) {
-  if (image->corner_radius == corner_radius) return false;
+// Unified setter - sets all four corners
+bool image_set_corner_radius(struct image* image, uint32_t radius) {
+  bool changed = false;
+  changed |= (image->corner_radii.top_left != radius);
+  changed |= (image->corner_radii.top_right != radius);
+  changed |= (image->corner_radii.bottom_left != radius);
+  changed |= (image->corner_radii.bottom_right != radius);
+  if (!changed) return false;
 
-  image->corner_radius = corner_radius;
+  image->corner_radii.top_left = radius;
+  image->corner_radii.top_right = radius;
+  image->corner_radii.bottom_left = radius;
+  image->corner_radii.bottom_right = radius;
   return true;
+}
+
+// Individual corner setters
+bool image_set_corner_radius_tl(struct image* image, uint32_t r) {
+  if (image->corner_radii.top_left == r) return false;
+  image->corner_radii.top_left = r;
+  return true;
+}
+
+bool image_set_corner_radius_tr(struct image* image, uint32_t r) {
+  if (image->corner_radii.top_right == r) return false;
+  image->corner_radii.top_right = r;
+  return true;
+}
+
+bool image_set_corner_radius_bl(struct image* image, uint32_t r) {
+  if (image->corner_radii.bottom_left == r) return false;
+  image->corner_radii.bottom_left = r;
+  return true;
+}
+
+bool image_set_corner_radius_br(struct image* image, uint32_t r) {
+  if (image->corner_radii.bottom_right == r) return false;
+  image->corner_radii.bottom_right = r;
+  return true;
+}
+
+// Side setters (top, bottom, left, right)
+bool image_set_corner_radius_top(struct image* image, uint32_t r) {
+  bool changed = image_set_corner_radius_tl(image, r);
+  changed |= image_set_corner_radius_tr(image, r);
+  return changed;
+}
+
+bool image_set_corner_radius_bottom(struct image* image, uint32_t r) {
+  bool changed = image_set_corner_radius_bl(image, r);
+  changed |= image_set_corner_radius_br(image, r);
+  return changed;
+}
+
+bool image_set_corner_radius_left(struct image* image, uint32_t r) {
+  bool changed = image_set_corner_radius_tl(image, r);
+  changed |= image_set_corner_radius_bl(image, r);
+  return changed;
+}
+
+bool image_set_corner_radius_right(struct image* image, uint32_t r) {
+  bool changed = image_set_corner_radius_tr(image, r);
+  changed |= image_set_corner_radius_br(image, r);
+  return changed;
 }
 
 bool image_set_border_width(struct image* image, float border_width) {
@@ -260,11 +322,9 @@ void image_draw(struct image* image, CGContextRef context) {
     CGRect sbounds = shadow_get_bounds(&image->shadow, image->bounds);
     CGContextSetRGBFillColor(context, image->shadow.color.r, image->shadow.color.g, image->shadow.color.b, image->shadow.color.a);
     CGMutablePathRef path = CGPathCreateMutable();
-    CGPathAddRoundedRect(path,
-                         NULL,
-                         sbounds,
-                         image->corner_radius,
-                         image->corner_radius);
+    add_rounded_rect_path(path, sbounds,
+                         image->corner_radii.top_left, image->corner_radii.top_right,
+                         image->corner_radii.bottom_left, image->corner_radii.bottom_right);
 
     CGContextAddPath(context, path);
     CGContextDrawPath(context, kCGPathFillStroke);
@@ -273,14 +333,17 @@ void image_draw(struct image* image, CGContextRef context) {
   } 
 
   CGContextSaveGState(context);
-  if (image->bounds.size.height > 2*image->corner_radius
-      && image->bounds.size.width > 2*image->corner_radius) {
+  uint32_t max_corner = image->corner_radii.top_left;
+  if (image->corner_radii.top_right > max_corner) max_corner = image->corner_radii.top_right;
+  if (image->corner_radii.bottom_left > max_corner) max_corner = image->corner_radii.bottom_left;
+  if (image->corner_radii.bottom_right > max_corner) max_corner = image->corner_radii.bottom_right;
+
+  if (image->bounds.size.height > 2*max_corner
+      && image->bounds.size.width > 2*max_corner) {
     CGMutablePathRef path = CGPathCreateMutable();
-    CGPathAddRoundedRect(path,
-                         NULL,
-                         image->bounds,
-                         image->corner_radius,
-                         image->corner_radius);
+    add_rounded_rect_path(path, image->bounds,
+                         image->corner_radii.top_left, image->corner_radii.top_right,
+                         image->corner_radii.bottom_left, image->corner_radii.bottom_right);
 
     CGContextAddPath(context, path);
     CGContextClip(context);
@@ -291,8 +354,8 @@ void image_draw(struct image* image, CGContextRef context) {
                      image->bounds,
                      image->link ? image->link->image_ref : image->image_ref);
 
-  if (image->bounds.size.height > 2*image->corner_radius
-      && image->bounds.size.width > 2*image->corner_radius) {
+  if (image->bounds.size.height > 2*max_corner
+      && image->bounds.size.width > 2*max_corner) {
     CGContextSetLineWidth(context, 2*image->border_width);
     CGContextSetRGBStrokeColor(context,
                                image->border_color.r,
@@ -302,11 +365,9 @@ void image_draw(struct image* image, CGContextRef context) {
 
     CGContextSetRGBFillColor(context, 0, 0, 0, 0);
     CGMutablePathRef path = CGPathCreateMutable();
-    CGPathAddRoundedRect(path,
-                         NULL,
-                         image->bounds,
-                         image->corner_radius,
-                         image->corner_radius);
+    add_rounded_rect_path(path, image->bounds,
+                         image->corner_radii.top_left, image->corner_radii.top_right,
+                         image->corner_radii.bottom_left, image->corner_radii.bottom_right);
 
     CGContextAddPath(context, path);
     CGContextDrawPath(context, kCGPathFillStroke);
@@ -329,12 +390,15 @@ void image_destroy(struct image* image) {
 }
 
 void image_serialize(struct image* image, char* indent, FILE* rsp) {
-  fprintf(rsp, "%s\"value\": \"%s\",\n"
-               "%s\"drawing\": \"%s\",\n"
-               "%s\"scale\": %f",
-               indent, image->path,
-               indent, format_bool(image->enabled),
-               indent, image->scale                );
+  fprintf(rsp, "%s\"value\": \"%s\",\n", indent, image->path);
+  fprintf(rsp, "%s\"drawing\": \"%s\",\n", indent, format_bool(image->enabled));
+  fprintf(rsp, "%s\"scale\": %f,\n", indent, image->scale);
+  fprintf(rsp, "%s\"corner_radius\": {\n", indent);
+  fprintf(rsp, "%s  \"top_left\": %u,\n", indent, image->corner_radii.top_left);
+  fprintf(rsp, "%s  \"top_right\": %u,\n", indent, image->corner_radii.top_right);
+  fprintf(rsp, "%s  \"bottom_left\": %u,\n", indent, image->corner_radii.bottom_left);
+  fprintf(rsp, "%s  \"bottom_right\": %u\n", indent, image->corner_radii.bottom_right);
+  fprintf(rsp, "%s}", indent);
 }
 
 bool image_parse_sub_domain(struct image* image, FILE* rsp, struct token property, char* message) {
@@ -356,7 +420,7 @@ bool image_parse_sub_domain(struct image* image, FILE* rsp, struct token propert
   else if (token_equals(property, PROPERTY_CORNER_RADIUS)) {
     ANIMATE(image_set_corner_radius,
             image,
-            image->corner_radius,
+            image->corner_radii.top_left,
             token_to_uint32t(get_token(&message)));
   }
   else if (token_equals(property, PROPERTY_PADDING_LEFT)) {
@@ -407,6 +471,52 @@ bool image_parse_sub_domain(struct image* image, FILE* rsp, struct token propert
                                        rsp,
                                        entry,
                                        message             );
+      }
+      else if (token_equals(subdom, SUB_DOMAIN_CORNER_RADIUS)) {
+        // Parse corner_radius.X or corner_radius.X.Y
+        struct key_value_pair sub_kv = get_key_value_pair(entry.text, '.');
+        if (sub_kv.key && sub_kv.value) {
+          // Two levels: corner_radius.top.left
+          struct token first = {sub_kv.key, strlen(sub_kv.key)};
+          struct token second = {sub_kv.value, strlen(sub_kv.value)};
+
+          if (token_equals(first, SUB_DOMAIN_TOP)) {
+            if (token_equals(second, SUB_DOMAIN_LEFT)) {
+              struct token token = get_token(&message);
+              ANIMATE(image_set_corner_radius_tl, image,
+                      image->corner_radii.top_left, token_to_int(token));
+            } else if (token_equals(second, SUB_DOMAIN_RIGHT)) {
+              struct token token = get_token(&message);
+              ANIMATE(image_set_corner_radius_tr, image,
+                      image->corner_radii.top_right, token_to_int(token));
+            }
+          } else if (token_equals(first, SUB_DOMAIN_BOTTOM)) {
+            if (token_equals(second, SUB_DOMAIN_LEFT)) {
+              struct token token = get_token(&message);
+              ANIMATE(image_set_corner_radius_bl, image,
+                      image->corner_radii.bottom_left, token_to_int(token));
+            } else if (token_equals(second, SUB_DOMAIN_RIGHT)) {
+              struct token token = get_token(&message);
+              ANIMATE(image_set_corner_radius_br, image,
+                      image->corner_radii.bottom_right, token_to_int(token));
+            }
+          }
+        } else {
+          // One level: corner_radius.top
+          struct token side = {entry.text, strlen(entry.text)};
+          struct token token = get_token(&message);
+          uint32_t value = token_to_int(token);
+
+          if (token_equals(side, SUB_DOMAIN_TOP)) {
+            needs_refresh = image_set_corner_radius_top(image, value);
+          } else if (token_equals(side, SUB_DOMAIN_BOTTOM)) {
+            needs_refresh = image_set_corner_radius_bottom(image, value);
+          } else if (token_equals(side, SUB_DOMAIN_LEFT)) {
+            needs_refresh = image_set_corner_radius_left(image, value);
+          } else if (token_equals(side, SUB_DOMAIN_RIGHT)) {
+            needs_refresh = image_set_corner_radius_right(image, value);
+          }
+        }
       }
       else {
         respond(rsp, "[?] Image: Invalid subdomain: %s \n", property.text);

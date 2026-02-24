@@ -27,7 +27,7 @@ struct gradient {
 
 void gradient_init(struct gradient* gradient);
 void gradient_destroy(struct gradient* gradient);
-void gradient_draw(struct gradient* gradient, CGContextRef context, CGRect region, uint32_t corner_radius);
+void gradient_draw(struct gradient* gradient, CGContextRef context, CGRect region, struct corner_radii* corner_radii);
 
 void gradient_serialize(struct gradient* gradient, char* indent, FILE* rsp);
 bool gradient_parse_sub_domain(struct gradient* gradient, FILE* rsp, struct token property, char* message);

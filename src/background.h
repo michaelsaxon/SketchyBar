@@ -12,7 +12,7 @@ struct background {
   int x_offset;
   int y_offset;
   uint32_t border_width;
-  uint32_t corner_radius;
+  struct corner_radii corner_radii;
 
   CGRect bounds;
   struct image image;

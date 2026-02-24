@@ -17,7 +17,10 @@ void background_init(struct background* background) {
   background->border_width = 0;
   background->padding_left = 0;
   background->padding_right = 0;
-  background->corner_radius = 0;
+  background->corner_radii.top_left = 0;
+  background->corner_radii.top_right = 0;
+  background->corner_radii.bottom_left = 0;
+  background->corner_radii.bottom_right = 0;
   background->x_offset = 0;
   background->y_offset = 0;
 
@@ -81,10 +84,70 @@ static bool background_set_border_width(struct background* background, uint32_t 
   return true;
 }
 
-static bool background_set_corner_radius(struct background* background, uint32_t corner_radius) {
-  if (background->corner_radius == corner_radius) return false;
-  background->corner_radius = corner_radius;
+// Unified setter - sets all four corners
+static bool background_set_corner_radius(struct background* bg, uint32_t radius) {
+  bool changed = false;
+  changed |= (bg->corner_radii.top_left != radius);
+  changed |= (bg->corner_radii.top_right != radius);
+  changed |= (bg->corner_radii.bottom_left != radius);
+  changed |= (bg->corner_radii.bottom_right != radius);
+  if (!changed) return false;
+
+  bg->corner_radii.top_left = radius;
+  bg->corner_radii.top_right = radius;
+  bg->corner_radii.bottom_left = radius;
+  bg->corner_radii.bottom_right = radius;
   return true;
+}
+
+// Individual corner setters
+static bool background_set_corner_radius_tl(struct background* bg, uint32_t r) {
+  if (bg->corner_radii.top_left == r) return false;
+  bg->corner_radii.top_left = r;
+  return true;
+}
+
+static bool background_set_corner_radius_tr(struct background* bg, uint32_t r) {
+  if (bg->corner_radii.top_right == r) return false;
+  bg->corner_radii.top_right = r;
+  return true;
+}
+
+static bool background_set_corner_radius_bl(struct background* bg, uint32_t r) {
+  if (bg->corner_radii.bottom_left == r) return false;
+  bg->corner_radii.bottom_left = r;
+  return true;
+}
+
+static bool background_set_corner_radius_br(struct background* bg, uint32_t r) {
+  if (bg->corner_radii.bottom_right == r) return false;
+  bg->corner_radii.bottom_right = r;
+  return true;
+}
+
+// Side setters (top, bottom, left, right)
+static bool background_set_corner_radius_top(struct background* bg, uint32_t r) {
+  bool changed = background_set_corner_radius_tl(bg, r);
+  changed |= background_set_corner_radius_tr(bg, r);
+  return changed;
+}
+
+static bool background_set_corner_radius_bottom(struct background* bg, uint32_t r) {
+  bool changed = background_set_corner_radius_bl(bg, r);
+  changed |= background_set_corner_radius_br(bg, r);
+  return changed;
+}
+
+static bool background_set_corner_radius_left(struct background* bg, uint32_t r) {
+  bool changed = background_set_corner_radius_tl(bg, r);
+  changed |= background_set_corner_radius_bl(bg, r);
+  return changed;
+}
+
+static bool background_set_corner_radius_right(struct background* bg, uint32_t r) {
+  bool changed = background_set_corner_radius_tr(bg, r);
+  changed |= background_set_corner_radius_br(bg, r);
+  return changed;
 }
 
 static bool background_set_xoffset(struct background* background, int offset) {
@@ -115,7 +178,7 @@ bool background_clip_needs_update(struct background* background, struct bar* bar
   if (background->clip == 0.f || !background->enabled) return false;
   struct background* clip = background_get_clip(background, bar->adid);
   if (!CGRectEqualToRect(background->bounds, clip->bounds)) return true;
-  if (background->corner_radius != clip->corner_radius) return true;
+  if (memcmp(&background->corner_radii, &clip->corner_radii, sizeof(struct corner_radii)) != 0) return true;
   if (background->x_offset != clip->x_offset) return true;
   if (background->y_offset != clip->y_offset) return true;
   return false;
@@ -166,7 +229,7 @@ void background_clip_bar(struct background* background, int offset, struct bar* 
   clip_rect(bar->window.context,
             background_bounds,
             background->clip,
-            background->corner_radius);
+            &background->corner_radii);
 }
 
 void background_calculate_bounds(struct background* background, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
@@ -179,16 +242,16 @@ void background_calculate_bounds(struct background* background, uint32_t x, uint
     image_calculate_bounds(&background->image, x, y);
 }
 
-static void draw_rect(CGContextRef context, CGRect region, struct color* fill_color, uint32_t corner_radius, uint32_t line_width, struct color* stroke_color) {
+static void draw_rect(CGContextRef context, CGRect region, struct color* fill_color, struct corner_radii* corner_radii, uint32_t line_width, struct color* stroke_color) {
   CGContextSetLineWidth(context, line_width);
   if (stroke_color) CGContextSetRGBStrokeColor(context, stroke_color->r, stroke_color->g, stroke_color->b, stroke_color->a);
   CGContextSetRGBFillColor(context, fill_color->r, fill_color->g, fill_color->b, fill_color->a);
 
   CGMutablePathRef path = CGPathCreateMutable();
   CGRect inset_region = CGRectInset(region, (float)(line_width) / 2.f, (float)(line_width) / 2.f);
-  if (corner_radius > inset_region.size.height / 2.f || corner_radius > inset_region.size.width / 2.f)
-    corner_radius = inset_region.size.height > inset_region.size.width ? inset_region.size.width / 2.f : inset_region.size.height / 2.f; 
-  CGPathAddRoundedRect(path, NULL, inset_region, corner_radius, corner_radius);
+  add_rounded_rect_path(path, inset_region,
+                       corner_radii->top_left, corner_radii->top_right,
+                       corner_radii->bottom_left, corner_radii->bottom_right);
   CGContextAddPath(context, path);
   CGContextDrawPath(context, kCGPathFillStroke);
   CFRelease(path);
@@ -214,7 +277,7 @@ void background_draw(struct background* background, CGContextRef context) {
     draw_rect(context,
               bounds,
               &background->shadow.color,
-              background->corner_radius,
+              &background->corner_radii,
               background->border_width,
               &background->shadow.color);
   }
@@ -224,7 +287,7 @@ void background_draw(struct background* background, CGContextRef context) {
                                (float)(background->border_width) / 2.f,
                                (float)(background->border_width) / 2.f);
     gradient_draw(&background->gradient, context, inset,
-                  background->corner_radius);
+                  &background->corner_radii);
 
     if (background->border_width > 0 && background->border_color.a > 0) {
       CGContextSetLineWidth(context, background->border_width);
@@ -237,12 +300,11 @@ void background_draw(struct background* background, CGContextRef context) {
       CGRect inset_region = CGRectInset(background_bounds,
                                          (float)(background->border_width) / 2.f,
                                          (float)(background->border_width) / 2.f);
-      uint32_t cr = background->corner_radius;
-      if (cr > inset_region.size.height / 2.f || cr > inset_region.size.width / 2.f)
-        cr = inset_region.size.height > inset_region.size.width
-             ? inset_region.size.width / 2.f
-             : inset_region.size.height / 2.f;
-      CGPathAddRoundedRect(path, NULL, inset_region, cr, cr);
+      add_rounded_rect_path(path, inset_region,
+                           background->corner_radii.top_left,
+                           background->corner_radii.top_right,
+                           background->corner_radii.bottom_left,
+                           background->corner_radii.bottom_right);
       CGContextAddPath(context, path);
       CGContextStrokePath(context);
       CFRelease(path);
@@ -251,7 +313,7 @@ void background_draw(struct background* background, CGContextRef context) {
     draw_rect(context,
               background_bounds,
               &background->color,
-              background->corner_radius,
+              &background->corner_radii,
               background->border_width,
               &background->border_color);
   }
@@ -283,19 +345,31 @@ void background_serialize(struct background* background, char* indent, FILE* rsp
                "%s\"color\": \"0x%x\",\n"
                "%s\"border_color\": \"0x%x\",\n"
                "%s\"border_width\": %u,\n"
-               "%s\"height\": %u,\n"
-               "%s\"corner_radius\": %u,\n"
-               "%s\"padding_left\": %d,\n"
-               "%s\"padding_right\": %d,\n"
-               "%s\"x_offset\": %d,\n"
-               "%s\"y_offset\": %d,\n"
-               "%s\"clip\": %f,\n",
+               "%s\"height\": %u,\n",
                indent, format_bool(background->enabled),
                indent, background->color.hex,
                indent, background->border_color.hex,
                indent, background->border_width,
-               indent, background->overrides_height ? (int)background->bounds.size.height : 0,
-               indent, background->corner_radius,
+               indent, background->overrides_height ? (int)background->bounds.size.height : 0);
+
+  fprintf(rsp, "%s\"corner_radius\": {\n"
+               "%s  \"top_left\": %u,\n"
+               "%s  \"top_right\": %u,\n"
+               "%s  \"bottom_left\": %u,\n"
+               "%s  \"bottom_right\": %u\n"
+               "%s},\n",
+               indent,
+               indent, background->corner_radii.top_left,
+               indent, background->corner_radii.top_right,
+               indent, background->corner_radii.bottom_left,
+               indent, background->corner_radii.bottom_right,
+               indent);
+
+  fprintf(rsp, "%s\"padding_left\": %d,\n"
+               "%s\"padding_right\": %d,\n"
+               "%s\"x_offset\": %d,\n"
+               "%s\"y_offset\": %d,\n"
+               "%s\"clip\": %f,\n",
                indent, background->padding_left,
                indent, background->padding_right,
                indent, background->x_offset,
@@ -343,7 +417,7 @@ bool background_parse_sub_domain(struct background* background, FILE* rsp, struc
     struct token token = get_token(&message);
     ANIMATE(background_set_corner_radius,
             background,
-            background->corner_radius,
+            background->corner_radii.top_left,
             token_to_int(token)          );
   }
   else if (token_equals(property, PROPERTY_BORDER_WIDTH)) {
@@ -428,6 +502,52 @@ bool background_parse_sub_domain(struct background* background, FILE* rsp, struc
                                          rsp,
                                          entry,
                                          message                );
+      }
+      else if (token_equals(subdom, SUB_DOMAIN_CORNER_RADIUS)) {
+        // Parse corner_radius.X or corner_radius.X.Y
+        struct key_value_pair sub_kv = get_key_value_pair(entry.text, '.');
+        if (sub_kv.key && sub_kv.value) {
+          // Two levels: corner_radius.top.left
+          struct token first = {sub_kv.key, strlen(sub_kv.key)};
+          struct token second = {sub_kv.value, strlen(sub_kv.value)};
+
+          if (token_equals(first, SUB_DOMAIN_TOP)) {
+            if (token_equals(second, SUB_DOMAIN_LEFT)) {
+              struct token token = get_token(&message);
+              ANIMATE(background_set_corner_radius_tl, background,
+                      background->corner_radii.top_left, token_to_int(token));
+            } else if (token_equals(second, SUB_DOMAIN_RIGHT)) {
+              struct token token = get_token(&message);
+              ANIMATE(background_set_corner_radius_tr, background,
+                      background->corner_radii.top_right, token_to_int(token));
+            }
+          } else if (token_equals(first, SUB_DOMAIN_BOTTOM)) {
+            if (token_equals(second, SUB_DOMAIN_LEFT)) {
+              struct token token = get_token(&message);
+              ANIMATE(background_set_corner_radius_bl, background,
+                      background->corner_radii.bottom_left, token_to_int(token));
+            } else if (token_equals(second, SUB_DOMAIN_RIGHT)) {
+              struct token token = get_token(&message);
+              ANIMATE(background_set_corner_radius_br, background,
+                      background->corner_radii.bottom_right, token_to_int(token));
+            }
+          }
+        } else {
+          // One level: corner_radius.top
+          struct token side = {entry.text, strlen(entry.text)};
+          struct token token = get_token(&message);
+          uint32_t value = token_to_int(token);
+
+          if (token_equals(side, SUB_DOMAIN_TOP)) {
+            needs_refresh = background_set_corner_radius_top(background, value);
+          } else if (token_equals(side, SUB_DOMAIN_BOTTOM)) {
+            needs_refresh = background_set_corner_radius_bottom(background, value);
+          } else if (token_equals(side, SUB_DOMAIN_LEFT)) {
+            needs_refresh = background_set_corner_radius_left(background, value);
+          } else if (token_equals(side, SUB_DOMAIN_RIGHT)) {
+            needs_refresh = background_set_corner_radius_right(background, value);
+          }
+        }
       }
       else {
         respond(rsp, "[!] Background: Invalid subdomain '%s'\n", subdom.text);

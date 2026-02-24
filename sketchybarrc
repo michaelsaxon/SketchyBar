@@ -20,12 +20,12 @@ PLUGIN_DIR="$CONFIG_DIR/plugins"
 #                  gradient.angle=270
 
 sketchybar --bar position=top height=40 blur_radius=30 \
-                 gradient.stops.0.color=0xee1F55CC \
+                 gradient.stops.0.color=0xff1946B5 \
                  gradient.stops.0.position=0 \
                  gradient.stops.1.color=0xff75B4EE \
-                 gradient.stops.1.position=0.09 \
-                 gradient.stops.2.color=0xff488EF1 \
-                 gradient.stops.2.position=0.14 \
+                 gradient.stops.1.position=0.05 \
+                 gradient.stops.2.color=0xff2464E2 \
+                 gradient.stops.2.position=0.06 \
                  gradient.stops.3.color=0xff2056D6 \
                  gradient.stops.3.position=0.20 \
                  gradient.stops.4.color=0xff2464E2 \
@@ -33,10 +33,14 @@ sketchybar --bar position=top height=40 blur_radius=30 \
                  gradient.stops.5.color=0xff225DD7 \
                  gradient.stops.5.position=0.77 \
                  gradient.stops.6.color=0xff1F55CC \
-                 gradient.stops.6.position=0.95 \
+                 gradient.stops.6.position=0.9 \
                  gradient.stops.7.color=0xff1946B5 \
-                 gradient.stops.7.position=1 \
-                 gradient.angle=270
+                 gradient.stops.7.position=0.95 \
+                 gradient.angle=270 \
+                 shadow=on \
+                 margin=0 \
+                 padding_left=0 \
+                 padding_right=0
 
 ##### Changing Defaults #####
 # We now change some default values, which are applied to all further items.
@@ -62,6 +66,23 @@ sketchybar --default "${default[@]}"
 # https://felixkratz.github.io/SketchyBar/config/components#space----associate-mission-control-spaces-with-an-item
 # to indicate active and available mission control spaces.
 
+# add start menu
+
+sketchybar --add item start left --set start label=" Start " label.drawing=on label.font="Helvetica Neue:Bold Italic:15.0" icon="" \
+    background.gradient.type=radial \
+    background.gradient.color_start=0xFF68CD53 \
+    background.gradient.color_end=0xFF356729 \
+    background.gradient.radius_h=60 \
+    background.gradient.radius_v=30 \
+    background.corner_radius.right=10 \
+    background.drawing=on \
+    icon.padding_left=20 \
+    label.padding_right=20 \
+    background.padding_left=0 \
+    icon.font.size=22 \
+    click_script=$PLUGIN_DIR/start.sh
+
+
 SPACE_ICONS=("1" "2" "3" "4" "5" "6" "7" "8" "9" "10")
 for i in "${!SPACE_ICONS[@]}"
 do
@@ -73,28 +94,33 @@ do
     icon.padding_right=7
     # background.color=0x40ffffff
     background.gradient.type=radial
-    background.gradient.color_start=0xFF11FF55
-    background.gradient.color_end=0xFF059933
+    background.gradient.color_start=0xff488EF1
+    background.gradient.color_end=0xff488EF1
+    background.border_color=0xff00ffff
     background.gradient.radius_h=40 \
     background.gradient.radius_v=15 \
     background.corner_radius=2
     background.height=25
     label.drawing=on
     label.font.size=16
+    label.color=0x55FFFFFF
+    icon.color=0x55FFFFFF
     script="$PLUGIN_DIR/space.sh"
-    click_script="yabai -m space --focus $sid"
+    # click_script="yabai -m space --focus $sid"
+    click_script="skhd -k \"ctrl -$sid\""
+    label.font="Hack Nerd Font:Bold:15.0"
+    icon.font="Berkeley Mono:Bold:17.0"
   )
   sketchybar --add space space."$sid" left --set space."$sid" "${space[@]}"
 done
+
 
 ##### Adding Left Items #####
 # We add some regular items to the left side of the bar, where
 # only the properties deviating from the current defaults need to be set
 
-sketchybar --add item chevron left \
-           --set chevron icon= label.drawing=off \
-           --add item front_app left \
-           --set front_app icon.drawing=off script="$PLUGIN_DIR/front_app.sh" \
+sketchybar --add item front_app left \
+           --set front_app icon.drawing=off script="$PLUGIN_DIR/front_app_extended.sh" \
                            background.drawing=on \
                            background.height=40 \
                            background.gradient.stops.0.color=0x00FFFFFF \
@@ -113,8 +139,11 @@ sketchybar --add item chevron left \
                            background.padding_right=8 \
                            label.padding_left=10 \
                            label.padding_right=30 \
-                           background.corner_radius=2 \
+                           background.corner_radius.bottom=7 \
+                           background.corner_radius.top=15 \
                            background.gradient.angle=270 \
+                           icon.drawing=on \
+                           icon.font="sketchybar-app-font:Regular:16.0" \
            --subscribe front_app front_app_switched
 
 ##### Adding Right Items #####
@@ -128,14 +157,75 @@ sketchybar --add item chevron left \
 # volume is registered. More info about the event system can be found here:
 # https://felixkratz.github.io/SketchyBar/config/events
 
+# sketchybar --add item clock right \
+#            --set clock update_freq=10 icon=  script="$PLUGIN_DIR/clock.sh" \
+
 sketchybar --add item clock right \
            --set clock update_freq=10 icon=  script="$PLUGIN_DIR/clock.sh" \
-           --add item volume right \
-           --set volume script="$PLUGIN_DIR/volume.sh" \
-           --subscribe volume volume_change \
-           --add item battery right \
-           --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+           icon.drawing=off background.padding_right=16
+
+# sketchybar --add item volume right \
+#            --set volume script="$PLUGIN_DIR/volume.sh" \
+#            --subscribe volume volume_change
+
+
+
+# sketchybar --add item battery right \
+#            --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+#            --subscribe battery system_woke power_source_change
+
+sketchybar --add item battery right \
+           --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" label.drawing="off" icon.width=30 icon.padding_right=0 icon.padding_right=0 icon.align=center \
+	   --set battery label.width=45 label.align=right label.font.size=15 \
+            background.padding_right=6 background.padding_left=6 \
            --subscribe battery system_woke power_source_change
+
+# reading input method
+sketchybar --add event language_changed AppleSelectedInputSourcesChangedNotification
+
+sketchybar --add item language right \
+	   --set language icon=󰌌 script="$PLUGIN_DIR/language.sh"  label.padding_right=5 label.padding_left=5 icon.font.size="20" \
+	   --set language update_freq=1 \
+     icon.drawing=off \
+     background.color=0x22FFFFFF background.drawing=on background.height=20 background.corner_radius=5 label.width=25 \
+	   --subscribe language mouse.clicked \
+     background.padding_right=6 background.padding_left=6 \
+	   #--subscribe language language_changed
+
+sketchybar --add item volume right \
+           --set volume script="$PLUGIN_DIR/volume.sh" label.drawing="on" \
+           --subscribe volume volume_change mouse.clicked \
+          --set volume label.align=left icon.width=15 icon.align=left \
+          icon.padding_right=10 label.padding_left=12 label.font.size=12 label.y_offset=1 \
+          background.padding_right=6 background.padding_left=6 \
+
+
+sketchybar --add item weather right \
+    --set weather \
+    icon.drawing=on icon.font.size=20.0 \
+    update_freq=1800 \
+    script="$PLUGIN_DIR/weather.sh" \
+    background.padding_right=6 background.padding_left=16 \
+    --subscribe weather system_woke 
+
+sketchybar --add bracket info clock volume battery language weather \
+          --set info  background.drawing=on background.height=40 padding_left=0 padding_right=0 background.corner_radius.left=4 padding_right=6 padding_left=6 \
+          background.gradient.stops.0.color=0xFF0067CB \
+          background.gradient.stops.1.color=0xFF00A3F6 \
+          background.gradient.stops.2.color=0xff0A95F1 \
+          background.gradient.stops.3.color=0xFF00A3F6 \
+          background.gradient.stops.4.color=0xff12B1FA \
+          background.gradient.stops.5.color=0xFF0067CB \
+          background.gradient.stops.0.position=0.05 \
+          background.gradient.stops.1.position=0.1 \
+          background.gradient.stops.2.position=0.5 \
+          background.gradient.stops.3.position=0.86 \
+          background.gradient.stops.4.position=0.95 \
+          background.gradient.stops.5.position=0.98 \
+          background.gradient.angle=90
+
+
+sketchybar --add bracket front_app_bracket \
 
 ##### Force all scripts to run the first time (never do this in a script) #####
 sketchybar --update
